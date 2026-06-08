@@ -24,6 +24,11 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+      - name: Project Setup
+        run: |
+          npm run setup
+          npm run dev:daemon
+
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
