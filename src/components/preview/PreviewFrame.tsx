@@ -26,6 +26,21 @@ export function PreviewFrame() {
   const errorRef = useRef<string | null>(null);
   errorRef.current = error;
 
+  // When the user clicks inside the iframe the browser moves focus into the iframe document.
+  // The next click on the parent-window header (Preview/Code tabs, auth buttons) is then
+  // consumed returning focus rather than activating the button — making toggles feel broken.
+  // Listening to window "blur" catches the moment the iframe steals focus and immediately
+  // hands it back, so no click is ever silently swallowed.
+  useEffect(() => {
+    const returnFocus = () => {
+      if (document.activeElement === iframeRef.current) {
+        window.focus();
+      }
+    };
+    window.addEventListener("blur", returnFocus);
+    return () => window.removeEventListener("blur", returnFocus);
+  }, []);
+
   // The file used as the root React component; defaults to /App.jsx
   const [entryPoint, setEntryPoint] = useState<string>("/App.jsx");
 
