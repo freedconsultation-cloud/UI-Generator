@@ -9,6 +9,32 @@
 
 import * as Babel from "@babel/standalone";
 
+// Pin specific third-party packages to a known-good version on esm.sh.
+// lucide-react: brand/logo icons (Linkedin, Github, Twitter, Facebook, Instagram…)
+// were removed in 0.475.0. The AI sometimes imports them anyway, and a single
+// missing named export ("Importing binding name 'Linkedin' is not found") breaks
+// the entire preview. 0.474.0 is the last release that still ships those icons
+// and remains React-19 compatible (React is externalized via the import map).
+const PINNED_PACKAGE_VERSIONS: Record<string, string> = {
+  "lucide-react": "0.474.0",
+};
+
+// Resolve a bare package specifier (and its subpaths) to an esm.sh URL, applying
+// any pinned version from PINNED_PACKAGE_VERSIONS. e.g. "lucide-react" →
+// "https://esm.sh/lucide-react@0.474.0", "lucide-react/icons" →
+// "https://esm.sh/lucide-react@0.474.0/icons".
+function resolvePackageUrl(specifier: string): string {
+  // Split the package name (incl. optional @scope) from any subpath.
+  const scoped = specifier.startsWith("@");
+  const segments = specifier.split("/");
+  const pkgName = scoped ? segments.slice(0, 2).join("/") : segments[0];
+  const subpath = specifier.slice(pkgName.length); // "" or "/some/subpath"
+
+  const version = PINNED_PACKAGE_VERSIONS[pkgName];
+  const pinned = version ? `${pkgName}@${version}` : pkgName;
+  return `https://esm.sh/${pinned}${subpath}`;
+}
+
 export interface TransformResult {
   code: string;
   error?: string;
@@ -156,8 +182,8 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
                             !imp.startsWith("@/");
 
           if (isPackage) {
-            // Map the package name directly to its esm.sh CDN URL
-            imports[imp] = `https://esm.sh/${imp}`;
+            // Map the package name directly to its esm.sh CDN URL (version-pinned if needed)
+            imports[imp] = resolvePackageUrl(imp);
           } else {
             // Queue local imports for resolution in the second pass
             allImports.add(imp);
@@ -232,8 +258,8 @@ export function createImportMap(files: Map<string, string>): ImportMapResult {
                       !importPath.startsWith("@/");
 
     if (isPackage) {
-      // Remaining third-party packages get mapped to esm.sh
-      imports[importPath] = `https://esm.sh/${importPath}`;
+      // Remaining third-party packages get mapped to esm.sh (version-pinned if needed)
+      imports[importPath] = resolvePackageUrl(importPath);
       continue;
     }
 

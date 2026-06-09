@@ -168,6 +168,43 @@ test("createImportMap handles @/ alias imports", () => {
   expect(parsed.imports["lib/utils"]).toBeDefined();
 });
 
+test("createImportMap pins lucide-react to a version that still ships brand icons", () => {
+  const files = new Map([
+    ["/App.jsx", "import { Linkedin } from 'lucide-react'; export default function App() { return <Linkedin />; }"],
+  ]);
+
+  const result = createImportMap(files);
+  const parsed = JSON.parse(result.importMap);
+
+  // Brand icons (Linkedin, Github, …) were removed from lucide-react in 0.475.0,
+  // so the package must be pinned to a release that still exports them.
+  expect(parsed.imports["lucide-react"]).toBe("https://esm.sh/lucide-react@0.474.0");
+});
+
+test("createImportMap maps unpinned packages to esm.sh without a version", () => {
+  const files = new Map([
+    ["/App.jsx", "import { clsx } from 'clsx'; export default function App() {}"],
+  ]);
+
+  const result = createImportMap(files);
+  const parsed = JSON.parse(result.importMap);
+
+  expect(parsed.imports["clsx"]).toBe("https://esm.sh/clsx");
+});
+
+test("createImportMap preserves subpaths when pinning a package version", () => {
+  const files = new Map([
+    ["/App.jsx", "import { Linkedin } from 'lucide-react/icons'; export default function App() {}"],
+  ]);
+
+  const result = createImportMap(files);
+  const parsed = JSON.parse(result.importMap);
+
+  expect(parsed.imports["lucide-react/icons"]).toBe(
+    "https://esm.sh/lucide-react@0.474.0/icons"
+  );
+});
+
 test("createPreviewHTML generates valid HTML with import map", () => {
   const importMap = JSON.stringify({
     imports: {
