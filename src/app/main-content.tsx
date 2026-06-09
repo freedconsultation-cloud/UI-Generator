@@ -73,7 +73,15 @@ export function MainContent({ user, project }: MainContentProps) {
               <div className="h-full flex flex-col bg-white">
 
                 {/* Top bar with Preview/Code tabs and user actions */}
-                <div className="h-14 border-b border-neutral-200/60 px-6 flex items-center justify-between bg-neutral-50/50">
+                {/* onPointerDown: if the preview iframe holds focus, blur it before the tab click
+                    is processed so Radix's pointerdown preventDefault doesn't swallow the event */}
+                <div
+                  className="h-14 border-b border-neutral-200/60 px-6 flex items-center justify-between bg-neutral-50/50"
+                  onPointerDown={() => {
+                    const active = document.activeElement;
+                    if (active instanceof HTMLIFrameElement) active.blur();
+                  }}
+                >
                   {/* Tab switcher between the live preview iframe and the code view */}
                   <Tabs
                     value={activeView}

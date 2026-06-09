@@ -21,6 +21,10 @@ export function PreviewFrame() {
 
   // Human-readable error string, or the special "firstLoad" sentinel
   const [error, setError] = useState<string | null>(null);
+  // Ref mirrors error state so the effect can read it without listing error as a dependency
+  // (listing error caused a redundant re-run every time the effect cleared the error)
+  const errorRef = useRef<string | null>(null);
+  errorRef.current = error;
 
   // The file used as the root React component; defaults to /App.jsx
   const [entryPoint, setEntryPoint] = useState<string>("/App.jsx");
@@ -34,7 +38,7 @@ export function PreviewFrame() {
         const files = getAllFiles();
 
         // Clear a stale error as soon as we have files to render
-        if (files.size > 0 && error) {
+        if (files.size > 0 && errorRef.current) {
           setError(null);
         }
 
@@ -117,8 +121,10 @@ export function PreviewFrame() {
     };
 
     updatePreview();
-  }, [refreshTrigger, getAllFiles, entryPoint, error, isFirstLoad]);
+  }, [refreshTrigger, getAllFiles, entryPoint, isFirstLoad]);
   // Re-run whenever the VFS changes (refreshTrigger) or the entry point shifts
+  // Note: error is intentionally excluded — the effect reads it via errorRef to avoid
+  // a redundant re-run each time the effect clears the error itself
 
   // Welcome screen shown on first load before the AI has created any files
   if (error) {
