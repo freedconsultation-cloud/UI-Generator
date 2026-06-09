@@ -52,7 +52,10 @@ export function MainContent({ user, project }: MainContentProps) {
           <ResizablePanelGroup id="main" direction="horizontal" className="h-full">
 
             {/* Left panel — chat interface */}
-            <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
+            {/* Explicit ids on every panel/handle keep react-resizable-panels from
+                falling back to useId(), whose values can diverge between the server
+                and client render and cause a hydration mismatch */}
+            <ResizablePanel id="main-chat" defaultSize={35} minSize={25} maxSize={50}>
               <div className="h-full flex flex-col bg-white">
                 {/* Chat header bar */}
                 <div className="h-14 flex items-center px-6 border-b border-neutral-200/60">
@@ -66,10 +69,10 @@ export function MainContent({ user, project }: MainContentProps) {
               </div>
             </ResizablePanel>
 
-            <ResizableHandle className="w-[1px] bg-neutral-200 hover:bg-neutral-300 transition-colors" />
+            <ResizableHandle id="main-handle" className="w-[1px] bg-neutral-200 hover:bg-neutral-300 transition-colors" />
 
             {/* Right panel — preview and code editor */}
-            <ResizablePanel defaultSize={65}>
+            <ResizablePanel id="main-editor" defaultSize={65}>
               <div className="h-full flex flex-col bg-white">
 
                 {/* Top bar with Preview/Code tabs and user actions */}
@@ -115,6 +118,7 @@ export function MainContent({ user, project }: MainContentProps) {
                     >
                       {/* File tree panel */}
                       <ResizablePanel
+                        id="code-editor-tree"
                         defaultSize={30}
                         minSize={20}
                         maxSize={50}
@@ -124,10 +128,10 @@ export function MainContent({ user, project }: MainContentProps) {
                         </div>
                       </ResizablePanel>
 
-                      <ResizableHandle className="w-[1px] bg-neutral-200 hover:bg-neutral-300 transition-colors" />
+                      <ResizableHandle id="code-editor-handle" className="w-[1px] bg-neutral-200 hover:bg-neutral-300 transition-colors" />
 
                       {/* Monaco code editor panel */}
-                      <ResizablePanel defaultSize={70}>
+                      <ResizablePanel id="code-editor-monaco" defaultSize={70}>
                         <div className="h-full bg-white">
                           <CodeEditor />
                         </div>
