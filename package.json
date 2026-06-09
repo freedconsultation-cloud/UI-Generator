@@ -15,6 +15,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "1.2.12",
     "@babel/standalone": "^7.27.6",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@monaco-editor/react": "^4.7.0",
     "@prisma/client": "^6.10.1",
     "@radix-ui/react-dialog": "^1.1.14",

@@ -5,13 +5,15 @@
 
 import type { FileNode } from "@/lib/file-system";
 import { VirtualFileSystem } from "@/lib/file-system";
-import { streamText, appendResponseMessages } from "ai";
+import { streamText, appendResponseMessages, experimental_createMCPClient } from "ai";
 import { buildStrReplaceTool } from "@/lib/tools/str-replace";
 import { buildFileManagerTool } from "@/lib/tools/file-manager";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getLanguageModel } from "@/lib/provider";
 import { generationPrompt } from "@/lib/prompts/generation";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import path from "path";
 
 export async function POST(req: Request) {
   // Destructure the request body: message history, current VFS snapshot, and optional project ID
@@ -43,6 +45,25 @@ export async function POST(req: Request) {
   // The mock provider generates canned multi-step responses; cap its steps to avoid infinite loops
   const isMockProvider = !process.env.ANTHROPIC_API_KEY;
 
+  // Spin up the MCP server subprocess and collect its tools.
+  // Falls back to an empty toolset if the server fails to start (e.g. in test environments).
+  let mcpClient: Awaited<ReturnType<typeof experimental_createMCPClient>> | null = null;
+  let mcpTools: Record<string, any> = {};
+  if (!isMockProvider) {
+    try {
+      const transport = new StdioClientTransport({
+        command: "node",
+        args: [path.join(process.cwd(), "src", "mcp-server.mjs")],
+        // Pipe stderr so MCP server logs don't pollute the Next.js server output
+        stderr: "pipe",
+      });
+      mcpClient = await experimental_createMCPClient({ transport: transport as any });
+      mcpTools = await mcpClient.tools();
+    } catch (err) {
+      console.error("MCP server failed to start, continuing without MCP tools:", err);
+    }
+  }
+
   const result = streamText({
     model,
     messages,
@@ -52,15 +73,23 @@ export async function POST(req: Request) {
     onError: (err: any) => {
       console.error(err);
     },
-    // Expose two tools to the model:
+    // Expose tools to the model:
     // - str_replace_editor: create files and perform targeted string replacements
     // - file_manager: rename or delete files
+    // - mcpTools: fetch_url and search_npm from the MCP subprocess
     tools: {
+      ...mcpTools,
       str_replace_editor: buildStrReplaceTool(fileSystem),
       file_manager: buildFileManagerTool(fileSystem),
     },
     // After the model finishes its full response, save the updated project to the database
     onFinish: async ({ response }) => {
+      // Shut down the MCP subprocess now that all tool calls are complete
+      if (mcpClient) {
+        await mcpClient.close().catch((err: Error) =>
+          console.error("Failed to close MCP client:", err)
+        );
+      }
       // Only persist if a projectId was provided by the client
       if (projectId) {
         try {
