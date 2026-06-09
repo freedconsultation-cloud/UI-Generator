@@ -1,0 +1,24 @@
+name: Issue SMS Alerts
+
+on:
+  issues:
+    types: [opened, closed]
+
+jobs:
+  sms:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send SMS via Twilio
+        run: |
+          if [ "${{ github.event.action }}" = "opened" ]; then
+            MSG="🆕 New issue on UIGen: \"${{ github.event.issue.title }}\" - ${{ github.event.issue.html_url }}"
+          else
+            MSG="✅ Issue resolved on UIGen: \"${{ github.event.issue.title }}\" - ${{ github.event.issue.html_url }}"
+          fi
+
+          curl -s -X POST \
+            "https://api.twilio.com/2010-04-01/Accounts/${{ secrets.TWILIO_ACCOUNT_SID }}/Messages.json" \
+            --data-urlencode "To=${{ secrets.TWILIO_TO_NUMBER }}" \
+            --data-urlencode "From=${{ secrets.TWILIO_FROM_NUMBER }}" \
+            --data-urlencode "Body=$MSG" \
+            -u "${{ secrets.TWILIO_ACCOUNT_SID }}:${{ secrets.TWILIO_AUTH_TOKEN }}"
