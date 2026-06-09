@@ -60,6 +60,27 @@ export function getToolLabel(toolName: string, args: Record<string, any>): strin
     }
   }
 
+  // MCP tool: fetch_url — show the hostname + path so users know what's being read
+  if (toolName === "fetch_url") {
+    const { url } = args || {};
+    if (url) {
+      try {
+        const { hostname, pathname } = new URL(url);
+        const short = pathname.length > 30 ? pathname.slice(0, 30) + "…" : pathname;
+        return `Fetching ${hostname}${short}`;
+      } catch {
+        return `Fetching ${url}`;
+      }
+    }
+    return "Fetching URL";
+  }
+
+  // MCP tool: search_npm — show what's being searched
+  if (toolName === "search_npm") {
+    const { query } = args || {};
+    return query ? `Searching npm for "${query}"` : "Searching npm";
+  }
+
   // Unknown tool — display the raw name rather than nothing
   return toolName;
 }

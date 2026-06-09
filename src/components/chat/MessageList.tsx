@@ -8,11 +8,32 @@ import { Message } from "ai";
 import { cn } from "@/lib/utils";
 import { User, Bot, Loader2 } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
-import { ToolCallBadge } from "./ToolCallBadge";
+import { ToolCallBadge, getToolLabel } from "./ToolCallBadge";
 
 interface MessageListProps {
   messages: Message[];
   isLoading?: boolean; // True while the model is actively streaming a response
+}
+
+// Derive a human-readable status label from the in-flight tool call (if any).
+// Falls back to "Generating…" when no tool is active.
+function getActiveStatus(messages: Message[]): string {
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+  if (!lastAssistant?.parts) return "Generating…";
+
+  const inFlight = [...lastAssistant.parts]
+    .reverse()
+    .find(
+      (p) =>
+        p.type === "tool-invocation" &&
+        (p.toolInvocation.state === "call" || p.toolInvocation.state === "partial-call")
+    );
+
+  if (inFlight && inFlight.type === "tool-invocation") {
+    return getToolLabel(inFlight.toolInvocation.toolName, inFlight.toolInvocation.args) + "…";
+  }
+
+  return "Generating…";
 }
 
 export function MessageList({ messages, isLoading }: MessageListProps) {
@@ -121,7 +142,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                         messages.indexOf(message) === messages.length - 1 && (
                           <div className="flex items-center gap-2 mt-3 text-neutral-500">
                             <Loader2 className="h-3 w-3 animate-spin" />
-                            <span className="text-sm">Generating...</span>
+                            <span className="text-sm">{getActiveStatus(messages)}</span>
                           </div>
                         )}
                     </>
@@ -138,7 +159,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                     // Empty assistant message that is still streaming — show spinner only
                     <div className="flex items-center gap-2 text-neutral-500">
                       <Loader2 className="h-3 w-3 animate-spin" />
-                      <span className="text-sm">Generating...</span>
+                      <span className="text-sm">{getActiveStatus(messages)}</span>
                     </div>
                   ) : null}
                 </div>

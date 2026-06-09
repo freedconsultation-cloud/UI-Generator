@@ -15,7 +15,14 @@ import { generationPrompt } from "@/lib/prompts/generation";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import path from "path";
 
+// Compact timestamp prefix for log lines, e.g. "14:23:01.456"
+function ts() {
+  return new Date().toISOString().slice(11, 23);
+}
+
 export async function POST(req: Request) {
+  const requestStart = Date.now();
+
   // Destructure the request body: message history, current VFS snapshot, and optional project ID
   const {
     messages,
@@ -23,6 +30,9 @@ export async function POST(req: Request) {
     projectId,
   }: { messages: any[]; files: Record<string, FileNode>; projectId?: string } =
     await req.json();
+
+  const userTurn = messages.filter((m: any) => m.role === "user").length;
+  console.log(`[chat] ${ts()} ▶ request — ${userTurn} user turn(s)${projectId ? ` project=${projectId}` : " (anon)"}`);
 
   // Prepend the system prompt as the very first message so Claude knows its role.
   // The cacheControl hint tells Anthropic to cache this prompt across turns,
@@ -54,11 +64,12 @@ export async function POST(req: Request) {
       const transport = new StdioClientTransport({
         command: "node",
         args: [path.join(process.cwd(), "src", "mcp-server.mjs")],
-        // Pipe stderr so MCP server logs don't pollute the Next.js server output
-        stderr: "pipe",
+        // In development, inherit stderr so MCP tool logs appear in the Next.js console
+        stderr: process.env.NODE_ENV === "development" ? "inherit" : "pipe",
       });
       mcpClient = await experimental_createMCPClient({ transport: transport as any });
       mcpTools = await mcpClient.tools();
+      console.log(`[chat] ${ts()} MCP tools ready: ${Object.keys(mcpTools).join(", ")}`);
     } catch (err) {
       console.error("MCP server failed to start, continuing without MCP tools:", err);
     }
@@ -71,7 +82,15 @@ export async function POST(req: Request) {
     // Allow up to 40 tool-call/response cycles for real Claude; fewer for the mock
     maxSteps: isMockProvider ? 4 : 40,
     onError: (err: any) => {
-      console.error(err);
+      console.error(`[chat] ${ts()} ✖ error:`, err);
+    },
+    onStepFinish: ({ toolCalls }) => {
+      // Log each tool call the model made during this step
+      for (const call of toolCalls ?? []) {
+        const preview = JSON.stringify(call.args ?? {});
+        const trimmed = preview.length > 120 ? preview.slice(0, 120) + "…" : preview;
+        console.log(`[chat] ${ts()} ⚙ tool: ${call.toolName} ${trimmed}`);
+      }
     },
     // Expose tools to the model:
     // - str_replace_editor: create files and perform targeted string replacements
@@ -83,7 +102,12 @@ export async function POST(req: Request) {
       file_manager: buildFileManagerTool(fileSystem),
     },
     // After the model finishes its full response, save the updated project to the database
-    onFinish: async ({ response }) => {
+    onFinish: async ({ response, usage }) => {
+      const elapsed = Date.now() - requestStart;
+      console.log(
+        `[chat] ${ts()} ✔ done — ${elapsed}ms | tokens in=${usage?.promptTokens ?? "?"} out=${usage?.completionTokens ?? "?"}`
+      );
+
       // Shut down the MCP subprocess now that all tool calls are complete
       if (mcpClient) {
         await mcpClient.close().catch((err: Error) =>

@@ -15,6 +15,7 @@ server.tool(
   'Fetch the text content of a URL. Use this to read npm README files, component library documentation, or any reference material before writing code.',
   { url: z.string().url().describe('The URL to fetch') },
   async ({ url }) => {
+    process.stderr.write(`[mcp] fetch_url: ${url}\n`);
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': 'UIGen/1.0' },
@@ -55,6 +56,7 @@ server.tool(
     limit: z.number().int().min(1).max(10).optional().default(5).describe('Number of results to return'),
   },
   async ({ query, limit }) => {
+    process.stderr.write(`[mcp] search_npm: "${query}" (limit=${limit})\n`);
     try {
       const url = `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=${limit}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
