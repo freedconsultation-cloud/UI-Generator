@@ -34,6 +34,9 @@ export default function RootLayout({
       <body
         // Apply both font CSS variables and enable font antialiasing globally
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        // Browser extensions (dark mode, Grammarly, etc.) inject attributes onto
+        // <body> before React loads — suppress the resulting hydration mismatch
+        suppressHydrationWarning
       >
         {children}
       </body>

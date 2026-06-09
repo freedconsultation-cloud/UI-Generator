@@ -1,24 +1,31 @@
-name: Issue SMS Alerts
+name: Issue Alerts
 
 on:
   issues:
     types: [opened, closed]
 
 jobs:
-  sms:
+  notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send SMS via Twilio
+      - name: Send notification via ntfy.sh
         run: |
           if [ "${{ github.event.action }}" = "opened" ]; then
-            MSG="🆕 New issue on UIGen: \"${{ github.event.issue.title }}\" - ${{ github.event.issue.html_url }}"
+            TITLE="New UIGen Issue"
+            TAGS="rotating_light"
+            PRIORITY="default"
+            MSG="${{ github.event.issue.title }} — ${{ github.event.issue.html_url }}"
           else
-            MSG="✅ Issue resolved on UIGen: \"${{ github.event.issue.title }}\" - ${{ github.event.issue.html_url }}"
+            TITLE="UIGen Issue Closed"
+            TAGS="white_check_mark"
+            PRIORITY="low"
+            MSG="${{ github.event.issue.title }} — ${{ github.event.issue.html_url }}"
           fi
 
-          curl -s -X POST \
-            "https://api.twilio.com/2010-04-01/Accounts/${{ secrets.TWILIO_ACCOUNT_SID }}/Messages.json" \
-            --data-urlencode "To=${{ secrets.TWILIO_TO_NUMBER }}" \
-            --data-urlencode "From=${{ secrets.TWILIO_FROM_NUMBER }}" \
-            --data-urlencode "Body=$MSG" \
-            -u "${{ secrets.TWILIO_ACCOUNT_SID }}:${{ secrets.TWILIO_AUTH_TOKEN }}"
+          curl -s \
+            -H "Title: $TITLE" \
+            -H "Tags: $TAGS" \
+            -H "Priority: $PRIORITY" \
+            -H "Click: ${{ github.event.issue.html_url }}" \
+            -d "$MSG" \
+            "https://ntfy.sh/${{ secrets.NTFY_TOPIC }}"

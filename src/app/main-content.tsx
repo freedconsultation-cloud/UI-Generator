@@ -49,7 +49,7 @@ export function MainContent({ user, project }: MainContentProps) {
       <ChatProvider projectId={project?.id} initialMessages={project?.messages}>
         <div className="h-screen w-screen overflow-hidden bg-neutral-50">
           {/* Two-column resizable layout: chat on the left, editor/preview on the right */}
-          <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanelGroup id="main" direction="horizontal" className="h-full">
 
             {/* Left panel — chat interface */}
             <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
@@ -109,6 +109,7 @@ export function MainContent({ user, project }: MainContentProps) {
                   ) : (
                     // Code view: file tree on the left, Monaco editor on the right
                     <ResizablePanelGroup
+                      id="code-editor"
                       direction="horizontal"
                       className="h-full"
                     >
